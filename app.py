@@ -10,6 +10,7 @@ app.secret_key = "beaconport-secret"
 
 # define routes
 @app.route("/", methods=["GET", "POST"])
+
 # main route to handle form submission and display messages
 def index():
     if request.method == "POST":
