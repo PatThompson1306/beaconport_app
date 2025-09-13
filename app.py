@@ -1,12 +1,16 @@
+# import necessary libraries
 from flask import Flask, render_template, request, redirect, url_for, flash
 import subprocess
 import sys
 import os
 
+# initialise Flask app
 app = Flask(__name__)
 app.secret_key = "beaconport-secret"
 
+# define routes
 @app.route("/", methods=["GET", "POST"])
+# main route to handle form submission and display messages
 def index():
     if request.method == "POST":
         try:
@@ -38,5 +42,6 @@ def index():
     
     return render_template("index.html")
 
+# run the app
 if __name__ == "__main__":
     app.run(debug=True)
