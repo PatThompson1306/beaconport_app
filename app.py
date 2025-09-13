@@ -1,61 +1,42 @@
-'''
-# relevant libraries
+from flask import Flask, render_template, request, redirect, url_for, flash
+import subprocess
+import sys
+import os
 
-import os # for interactivity with the OS 
-from flask import Flask, render_template, request, redirect # for web app structure
-from tinydb import TinyDB # for proof of concept (lightweight JSON based DB)
-
-# create the flask object
 app = Flask(__name__)
+app.secret_key = "beaconport-secret"
 
-# creates the TinyDB object an creates a cases table
-db = TinyDB("beaconport_db.json")
-cases_table = db.table("cases")
-
-# defines the route for GET and POST methods
 @app.route("/", methods=["GET", "POST"])
-
 def index():
-    # Print debug info
-    print("👉 Current working directory:", os.getcwd())
-    print("👉 Flask template folder:", app.template_folder)
-
     if request.method == "POST":
-        # placeholder for testing basic records into TinyDB
-        record = {
-            "case_id": request.form["case_id"],
-            "notes": request.form["notes"]
-        }
-        cases_table.insert(record)
-        # refreshes the page
-        return redirect("/")
-
-    # loads all cases in TinyDB to display
-    all_cases = cases_table.all()
-    return render_template("index.html", cases=all_cases)
-
-if __name__ == "__main__":
-    app.run(debug=True)
-'''
-
-# import relevant libraries
-from flask import Flask, render_template
-from tinydb import TinyDB
-
-# create flask instance
-app = Flask(__name__)
-
-# connect to TinyDB
-db = TinyDB("beaconport_db.json")
-cases_table = db.table("cases")
-
-# create route for HTML
-@app.route("/")
-def index():
-    # load all imported cases
-    all_cases = cases_table.all()
-    return render_template("index.html", cases=all_cases)
+        try:
+            # Run the import_excel.py script
+            excel_file = os.path.join(os.path.dirname(__file__), "Beaconport Capture.xlsx")  # Default filename
+            import_script = os.path.join(os.path.dirname(__file__), "import_excel.py")
+            
+            # Check if file exists
+            if not os.path.exists(excel_file):
+                flash(f"Error: {excel_file} not found in the application directory")
+                return redirect(url_for("index"))
+            if not os.path.exists(import_script):
+                flash(f"Error: import_excel.py not found in the application directory")
+                return redirect(url_for("index"))
+            
+            # Run the import script
+            result = subprocess.run([sys.executable, import_script, excel_file], 
+                                  capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                flash("Excel data successfully imported! ✅")
+            else:
+                flash(f"Error running import: {result.stderr}")
+                
+        except Exception as e:
+            flash(f"Error: {e}")
+        
+        return redirect(url_for("index"))
+    
+    return render_template("index.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
-

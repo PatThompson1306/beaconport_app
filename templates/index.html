@@ -2,37 +2,62 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Beaconport Cases</title>
+    <title>Beaconport Data Importer</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px;
+            max-width: 600px;
+        }
+        .import-button {
+            background: #007cba;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .import-button:hover {
+            background: #005a87;
+        }
+        .messages { 
+            margin-top: 20px; 
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .messages p {
+            margin: 0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
 </head>
 <body>
-    <h1>Imported Cases</h1>
+    <h1>Beaconport Data Importer</h1>
+    
+    <p>
+        [Placeholder text - edit as needed]<br>
+        This tool imports case data from the Beaconport Capture.xlsx file into the database.
+    </p>
 
-    {% if cases %}
-        <ul>
-        {% for case in cases %}
-            <li>
-                <h3>Case {{ case.case.case_id }}</h3>
-                <p><strong>Allocated To:</strong> {{ case.case.allocated_to }}</p>
-                <p><strong>Force Code:</strong> {{ case.case.force.code }}</p>
-                <p><strong>Force Reference:</strong> {{ case.case.force.reference }}</p>
-                <p><strong>Notes:</strong> {{ case.case.notes }}</p>
+    <form method="POST">
+        <button type="submit" class="import-button">Import Data</button>
+    </form>
 
-                <p><strong>Offence:</strong> {{ case.offence.offence_type }}  
-                   (Date: {{ case.offence.offence_date }},  
-                   Reported: {{ case.offence.reported_date }})</p>
-
-                <p><strong>Victim:</strong> {{ case.victim.first_name }} {{ case.victim.last_name }}  
-                   (DOB: {{ case.victim.dob }}, Ethnicity: {{ case.victim.ethnicity }})</p>
-
-                <p><strong>Suspect:</strong> {{ case.suspect.first_name }} {{ case.suspect.last_name }}  
-                   (DOB: {{ case.suspect.dob }}, Ethnicity: {{ case.suspect.ethnicity }})</p>
-
-                <hr>
-            </li>
-        {% endfor %}
-        </ul>
-    {% else %}
-        <p>No cases found. Did you run <code>import_excel.py</code>?</p>
-    {% endif %}
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="messages">
+          {% for msg in messages %}
+            {% if '✅' in msg or 'success' in msg.lower() %}
+              <p class="success">{{ msg }}</p>
+            {% else %}
+              <p class="error">{{ msg }}</p>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
 </body>
 </html>

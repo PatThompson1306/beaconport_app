@@ -1,86 +1,171 @@
+#!/usr/bin/env python3
+"""
+Dynamic Excel -> TinyDB importer that preserves all sheet headers.
+
+Usage:
+    python import_excel.py [path/to/Beaconport Capture.xlsx]
+
+Requirements:
+    pip install pandas tinydb openpyxl
+"""
+import sys
+import os
+import json
 import pandas as pd
+import numpy as np
 from tinydb import TinyDB
 
-# paths
-excel_path = "C:\\Users\\UserPC\\Desktop\\my_folder\\Beaconport POC\\beaconport_app\\Beaconport Capture.xlsx"
-db = TinyDB("beaconport_db.json")
-cases_table = db.table("cases")
+def clean_value(val):
+    """Return a JSON-serializable Python value for a pandas/numpy value."""
+    # None
+    if val is None:
+        return None
 
-# load sheets from core Beaconport workbook
-main_df = pd.read_excel(excel_path, sheet_name="Beaconport Main")
-offence_df = pd.read_excel(excel_path, sheet_name="Offence Details")
-case_df = pd.read_excel(excel_path, sheet_name="Case Data")
-victim_df = pd.read_excel(excel_path, sheet_name="Victim Details")
-suspect_df = pd.read_excel(excel_path, sheet_name="Suspect Details")
+    # pandas NA (handles numpy.nan etc.)
+    try:
+        if pd.isna(val):
+            return None
+    except Exception:
+        pass
 
-# clear old data before import
-cases_table.truncate()
+    # pandas Timestamp -> ISO string (date or datetime)
+    if hasattr(val, "to_pydatetime"):
+        try:
+            dt = val.to_pydatetime()
+            # If time component is 00:00:00, return just the date string
+            if dt.time() == pd.Timestamp(0).to_pydatetime().time():
+                return dt.date().isoformat()
+            return dt.isoformat()
+        except Exception:
+            pass
 
-# loop through cases in main sheet
-for _, row in main_df.iterrows():
-    case_id = row["Unnamed: 1"]
+    # numpy / pandas scalar -> Python native
+    if hasattr(val, "item"):
+        try:
+            return val.item()
+        except Exception:
+            pass
 
-    # case details
-    case_data = {
-        "case_id": case_id,
-        "allocated_to": row.get("Unnamed: 2", ""),
-        "force": {
-            "code": row.get("Unnamed: 3", ""),
-            "reference": row.get("Unnamed: 4", "")
-        },
-        "notes": row.get("Unnamed: 6", "")
+    # numpy primitive types
+    if isinstance(val, (np.integer, np.floating, np.bool_)):
+        return val.item()
+
+    # common Python primitives
+    if isinstance(val, (str, int, float, bool)):
+        return val
+
+    # fallback to str
+    return str(val)
+
+def find_ref_col(df):
+    """
+    Try to find the appropriate 'case reference' column in the dataframe.
+    Priority:
+      1) column containing both 'beaconport' and 'ref'
+      2) column containing 'ref'
+      3) fallback to first column
+    """
+    cols = list(df.columns)
+    # Normalize and search
+    for col in cols:
+        key = str(col).strip().lower()
+        if "beaconport" in key and "ref" in key:
+            return col
+    for col in cols:
+        key = str(col).strip().lower()
+        if "ref" in key:
+            return col
+    # fallback
+    return cols[0] if cols else None
+
+def clean_row(row):
+    """Clean all values in a row dict and strip header names."""
+    return {str(k).strip(): clean_value(v) for k, v in row.items()}
+
+def normalize_sheet_key(sheet_name):
+    """Create a safe key name from sheet name to store in the record."""
+    return sheet_name.strip().lower().replace(" ", "_")
+
+def import_excel_to_db(filepath, db_path="beaconport_db.json", truncate=True):
+    """
+    Read an Excel workbook and import all sheets into TinyDB, joined by case ref.
+
+    Result schema for each case (example):
+    {
+      "main": { ... main-sheet-row... },
+      "offence_details": [ { ... }, { ... } ],
+      "victim_details": [ { ... } ],
+      "case_data": [ { ... } ],
+      ...
     }
+    """
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Excel file not found: {filepath}")
 
-    # match offence
-    offence_match = offence_df[offence_df["Unnamed: 1"] == case_id]
-    offence_data = {}
-    if not offence_match.empty:
-        o = offence_match.iloc[0]
-        offence_data = {
-            "offence_type": o.get("Unnamed: 4", ""),
-            "offence_date": str(o.get("Unnamed: 2", "")),
-            "reported_date": str(o.get("Unnamed: 3", "")),
-            "location": {
-                "postcode": o.get("Unnamed: 7", ""),
-                "type": o.get("Unnamed: 8", "")
-            },
-            "court_outcome": o.get("Unnamed: 15", "")
-        }
+    # open workbook
+    xls = pd.ExcelFile(filepath)
 
-    # match victim
-    victim_match = victim_df[victim_df["Unnamed: 1"] == case_id]
-    victim_data = {}
-    if not victim_match.empty:
-        v = victim_match.iloc[0]
-        victim_data = {
-            "first_name": v.get("Unnamed: 2", ""),
-            "last_name": v.get("Unnamed: 4", ""),
-            "dob": str(v.get("Unnamed: 5", "")),
-            "ethnicity": v.get("Unnamed: 9", ""),
-            "home_postcode": v.get("Unnamed: 12", "")
-        }
+    # Read every sheet into a DataFrame
+    sheets = {}
+    for sheet_name in xls.sheet_names:
+        # read with dtype=object to avoid unneeded conversions
+        df = pd.read_excel(filepath, sheet_name=sheet_name, dtype=object)
+        sheets[sheet_name] = df
 
-    # match suspect
-    suspect_match = suspect_df[suspect_df["Unnamed: 1"] == case_id]
-    suspect_data = {}
-    if not suspect_match.empty:
-        s = suspect_match.iloc[0]
-        suspect_data = {
-            "first_name": s.get("Unnamed: 2", ""),
-            "last_name": s.get("Unnamed: 4", ""),
-            "dob": str(s.get("Unnamed: 5", "")),
-            "ethnicity": s.get("Unnamed: 9", ""),
-            "home_postcode": s.get("Unnamed: 13", "")
-        }
+    # Initialize TinyDB
+    db = TinyDB(db_path)
+    table = db.table("cases")
+    if truncate:
+        table.truncate()
 
-    # final record
-    case_record = {
-        "case": case_data,
-        "offence": offence_data,
-        "victim": victim_data,
-        "suspect": suspect_data
+    # Build lookups per sheet keyed by case ref
+    lookups = {}
+    for sheet_name, df in sheets.items():
+        ref_col = find_ref_col(df)
+        records = df.to_dict(orient="records")
+        lookup = {}
+        for r in records:
+            ref_val = clean_value(r.get(ref_col))
+            if ref_val is None:
+                # skip rows without a reference
+                continue
+            lookup.setdefault(ref_val, []).append(clean_row(r))
+        lookups[sheet_name] = {"ref_col": ref_col, "lookup": lookup, "original_count": len(records)}
+
+    # Determine main sheet: prefer "Beaconport Main" if present, else use first sheet
+    main_sheet_name = "Beaconport Main" if "Beaconport Main" in sheets else list(sheets.keys())[0]
+    main_ref_col = find_ref_col(sheets[main_sheet_name])
+
+    inserted = 0
+    # Iterate main sheet rows and assemble combined records
+    for r in sheets[main_sheet_name].to_dict(orient="records"):
+        ref = clean_value(r.get(main_ref_col))
+        if ref is None:
+            continue
+        combined = {}
+        combined["main"] = clean_row(r)
+
+        # attach all other sheet matches
+        for sheet_name, info in lookups.items():
+            if sheet_name == main_sheet_name:
+                continue
+            matched = info["lookup"].get(ref, [])
+            combined_key = normalize_sheet_key(sheet_name)
+            combined[combined_key] = matched
+
+        table.insert(combined)
+        inserted += 1
+
+    # Summary
+    summary = {
+        "file": filepath,
+        "db": db_path,
+        "sheets_read": {name: {"ref_col": info["ref_col"], "rows": info["original_count"]} for name, info in lookups.items()},
+        "cases_inserted": inserted
     }
+    print(json.dumps(summary, indent=2))
+    return summary
 
-    cases_table.insert(case_record)
-
-print("✅ Excel data imported into TinyDB")
+if __name__ == "__main__":
+    path = sys.argv[1] if len(sys.argv) > 1 else "Beaconport Capture.xlsx"
+    import_excel_to_db(path)
