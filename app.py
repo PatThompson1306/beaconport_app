@@ -1,3 +1,4 @@
+'''
 # relevant libraries
 
 import os # for interactivity with the OS 
@@ -35,3 +36,26 @@ def index():
 
 if __name__ == "__main__":
     app.run(debug=True)
+'''
+
+# import relevant libraries
+from flask import Flask, render_template
+from tinydb import TinyDB
+
+# create flask instance
+app = Flask(__name__)
+
+# connect to TinyDB
+db = TinyDB("beaconport_db.json")
+cases_table = db.table("cases")
+
+# create route for HTML
+@app.route("/")
+def index():
+    # load all imported cases
+    all_cases = cases_table.all()
+    return render_template("index.html", cases=all_cases)
+
+if __name__ == "__main__":
+    app.run(debug=True)
+

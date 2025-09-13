@@ -2,34 +2,37 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Beaconport App</title>
+    <title>Beaconport Cases</title>
 </head>
 <body>
-    <h1>Beaconport Case Capture</h1>
+    <h1>Imported Cases</h1>
 
-    <!-- Simple form -->
-    <form method="POST">
-        <label>Case ID:</label>
-        <input type="text" name="case_id" required><br><br>
-
-        <label>Notes:</label>
-        <input type="text" name="notes"><br><br>
-
-        <button type="submit">Save Case</button>
-    </form>
-
-    <hr>
-
-    <!-- Show all saved cases -->
-    <h2>Saved Cases</h2>
-    <ul>
+    {% if cases %}
+        <ul>
         {% for case in cases %}
             <li>
-                <strong>{{ case.case_id }}</strong> — {{ case.notes }}
+                <h3>Case {{ case.case.case_id }}</h3>
+                <p><strong>Allocated To:</strong> {{ case.case.allocated_to }}</p>
+                <p><strong>Force Code:</strong> {{ case.case.force.code }}</p>
+                <p><strong>Force Reference:</strong> {{ case.case.force.reference }}</p>
+                <p><strong>Notes:</strong> {{ case.case.notes }}</p>
+
+                <p><strong>Offence:</strong> {{ case.offence.offence_type }}  
+                   (Date: {{ case.offence.offence_date }},  
+                   Reported: {{ case.offence.reported_date }})</p>
+
+                <p><strong>Victim:</strong> {{ case.victim.first_name }} {{ case.victim.last_name }}  
+                   (DOB: {{ case.victim.dob }}, Ethnicity: {{ case.victim.ethnicity }})</p>
+
+                <p><strong>Suspect:</strong> {{ case.suspect.first_name }} {{ case.suspect.last_name }}  
+                   (DOB: {{ case.suspect.dob }}, Ethnicity: {{ case.suspect.ethnicity }})</p>
+
+                <hr>
             </li>
-        {% else %}
-            <li>No cases yet.</li>
         {% endfor %}
-    </ul>
+        </ul>
+    {% else %}
+        <p>No cases found. Did you run <code>import_excel.py</code>?</p>
+    {% endif %}
 </body>
 </html>
