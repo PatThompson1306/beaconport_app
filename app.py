@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+import io
+from flask import Flask, json, render_template, request, redirect, send_file, url_for, flash
 from tinydb import TinyDB
+import matplotlib.pyplot as plt
 import subprocess
 import sys
 import os
@@ -61,6 +63,42 @@ def index():
         return redirect(url_for("index"))
     
     return render_template("index.html", case_count=case_count)
+
+
+@app.route("/victim_ages")
+def victim_ages():
+    db_path = os.path.join(os.path.dirname(__file__), "beaconport_db.json")
+    with open(db_path, "r") as f:
+        data = json.load(f)
+    ages = []
+    for case in data["cases"].values():
+        for victim in case.get("victim_details", []):
+            age = victim.get("Victim Age at Time of Offence")
+            if age is not None:
+                ages.append(age)
+    return render_template("victim_ages.html")
+
+@app.route("/victim_ages_chart.png")
+def victim_ages_chart():
+    db_path = os.path.join(os.path.dirname(__file__), "beaconport_db.json")
+    with open(db_path, "r") as f:
+        data = json.load(f)
+    ages = []
+    for case in data["cases"].values():
+        for victim in case.get("victim_details", []):
+            age = victim.get("Victim Age at Time of Offence")
+            if age is not None:
+                ages.append(age)
+    plt.figure(figsize=(8, 4))
+    plt.hist(ages, bins=range(min(ages), max(ages)+2), edgecolor='black')
+    plt.title("Victim Ages Across All Cases")
+    plt.xlabel("Age")
+    plt.ylabel("Number of Victims")
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    plt.close()
+    buf.seek(0)
+    return send_file(buf, mimetype='image/png')
 
 if __name__ == "__main__":
     app.run(debug=True)
