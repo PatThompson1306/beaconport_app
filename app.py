@@ -12,79 +12,76 @@ import os # for file path handling
 app = Flask(__name__)
 app.secret_key = "beaconport-secret"
 
-# Function to get the count of unique cases in the database
+# Helper function: Get the count of unique cases in the database
 def get_case_count():
-    """Get the count of unique cases in the database"""
     try:
         db = TinyDB("beaconport_db.json")
         cases_table = db.table("cases")
         all_cases = cases_table.all()
-        
-        # Count unique case references from the main data
         unique_refs = set()
         for case in all_cases:
-            # Get the case reference from the main section
             if 'main' in case:
                 main_data = case['main']
-                # Find the reference field (could be any column name containing the ref)
                 for key, value in main_data.items():
-                    if value and str(value).strip():  # Skip empty values
-                        # Assume the first non-empty field in main is the reference
-                        # This matches how import_excel.py uses the first column as ref
+                    if value and str(value).strip():
                         unique_refs.add(str(value).strip())
                         break
-        
+                for value in main_data.values():
+                    if value and str(value).strip():
+                        unique_refs.add(str(value).strip())
+                        break
         return len(unique_refs)
-    except Exception:
+    except Exception as e:
+        print(f"Error in get_case_count: {e}")
         return 0
 
-
-# Function to get victim ages from the database (consolidated version)
+# Helper function: Get victim ages from the database
 def get_victim_ages():
-    """Extract victim ages from the database"""
-    try:
-        db_path = os.path.join(os.path.dirname(__file__), "beaconport_db.json")
-        
-        if not os.path.exists(db_path):
-            return []
-            
-        with open(db_path, "r") as f:
-            data = json.load(f)
-            
-        ages = []
-        for case in data.get("cases", {}).values():
-            for victim in case.get("victim_details", []):
-                age = victim.get("Victim Age at Time of Offence")
-                if age is not None:
-                    try:
-                        ages.append(int(age))  # Ensure it's an integer
-                    except (ValueError, TypeError):
-                        continue  # Skip invalid age values
-        
-        return ages
-    except Exception:
-        return []
+    db_path = os.path.join(os.path.dirname(__file__), "beaconport_db.json")
+    with open(db_path, "r") as f:
+        data = json.load(f)
+    ages = []
+    for case in data["cases"].values():
+        for victim in case.get("victim_details", []):
+            age = victim.get("Victim Age at Time of Offence")
+            if age is not None:
+                ages.append(age)
+    return ages
+
+# Helper function: Get (Digital Opportunities Present, Crime Finalisation Code) pairs
+def get_digital_vs_finalisation():
+    db_path = os.path.join(os.path.dirname(__file__), "beaconport_db.json")
+    with open(db_path, "r") as f:
+        data = json.load(f)
+    pairs = []
+    for case in data["cases"].values():
+        # Get from case_data (Digital Opportunities Present)
+        digital = None
+        case_data_list = case.get("case_data", [])
+        if case_data_list:
+            digital = case_data_list[0].get("Digital Opportunities Present")
+        # Get from offence_details (Crime Finalisation Code)
+        finalisation = None
+        offence_details_list = case.get("offence_details", [])
+        if offence_details_list:
+            finalisation = offence_details_list[0].get("Crime Finalisation Code")
+        # Only add if both values are present
+        if digital is not None and finalisation is not None:
+            pairs.append((digital, finalisation))
+    return pairs
 
 
 # Route for the main page
 @app.route("/", methods=["GET", "POST"])
 def index():
-    """Main page to display case count and import form"""
     case_count = get_case_count()
-    
     if request.method == "POST":
         try:
-            # Run the import_excel.py script
-            excel_file = "Beaconport Capture.xlsx"  # Default filename
-            
-            # Check if file exists
+            excel_file = "Beaconport Capture.xlsx"
             if not os.path.exists(excel_file):
                 flash(f"Error: {excel_file} not found in the current directory")
                 return redirect(url_for("index"))
-                
-            # Run the import script
-            result = subprocess.run([sys.executable, "import_excel.py", excel_file], 
-                                  capture_output=True, text=True)
+            result = subprocess.run([sys.executable, "import_excel.py", excel_file], capture_output=True, text=True)
             if result.returncode == 0:
                 flash("Excel data successfully imported! ✅")
             else:
@@ -92,46 +89,57 @@ def index():
         except Exception as e:
             flash(f"Error: {e}")
         return redirect(url_for("index"))
-        
     return render_template("index.html", case_count=case_count)
-
 
 # Route to page which will display victim ages chart
 @app.route("/victim_ages")
 def victim_ages():
-    """Display the victim ages chart page"""
     return render_template("victim_ages.html")
 
 
 # Route to serve the victim ages chart image
 @app.route("/victim_ages_chart.png")
 def victim_ages_chart():
-    """Generate and serve the victim ages histogram"""
     ages = get_victim_ages()
-    
-    # Handle case where no ages are found
-    if not ages:
-        # Create a simple "No data" chart
-        plt.figure(figsize=(8, 4))
-        plt.text(0.5, 0.5, 'No victim age data available', 
-                horizontalalignment='center', verticalalignment='center',
-                transform=plt.gca().transAxes, fontsize=16)
-        plt.title("Victim Ages Across All Cases")
-        plt.axis('off')
-    else:
-        plt.figure(figsize=(8, 4))
+    buf = io.BytesIO()
+    plt.figure(figsize=(8, 4))
+    if ages:
         plt.hist(ages, bins=range(min(ages), max(ages)+2), edgecolor='black')
         plt.title("Victim Ages Across All Cases")
         plt.xlabel("Age")
         plt.ylabel("Number of Victims")
-        plt.grid(True, alpha=0.3)
-    
-    # Save to buffer and return
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+    else:
+        plt.text(0.5, 0.5, 'No data available', ha='center', va='center')
+    plt.savefig(buf, format='png')
     plt.close()
     buf.seek(0)
-    
+    return send_file(buf, mimetype='image/png')
+
+# Route to page which will display digital vs finalisation chart
+@app.route("/digital_vs_finalisation")
+def digital_vs_finalisation():
+    return render_template("digital_vs_finalisation.html")
+
+
+# Route to serve the digital vs finalisation scatter plot image
+@app.route("/digital_vs_finalisation_chart.png")
+def digital_vs_finalisation_chart():
+    pairs = get_digital_vs_finalisation()
+    x = [p[0] for p in pairs]
+    y = [p[1] for p in pairs]
+    buf = io.BytesIO()
+    plt.figure(figsize=(8, 4))
+    if x and y:
+        plt.scatter(x, y, color='blue')
+        plt.title("Digital Opportunities vs Crime Finalisation Code")
+        plt.xlabel("Digital Opportunities Present")
+        plt.ylabel("Crime Finalisation Code")
+        plt.grid(True)
+    else:
+        plt.text(0.5, 0.5, 'No data available', ha='center', va='center')
+    plt.savefig(buf, format='png')
+    plt.close()
+    buf.seek(0)
     return send_file(buf, mimetype='image/png')
 
 
