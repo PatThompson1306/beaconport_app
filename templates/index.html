@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Beaconport Data PoC</title>
-  <link
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Beaconport Data PoC</title>
+    <link
       rel="stylesheet"
       href="{{ url_for('static', filename='styles.css') }}"
     />
@@ -14,12 +14,9 @@
       href="https://fonts.googleapis.com/css2?family=Gentium+Plus:ital,wght@0,400;0,700;1,400;1,700&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
       rel="stylesheet"
     />
-</head>
-<body>
-  
-</body>
+  </head>
+  <body></body>
 </html>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -46,15 +43,15 @@
     <h1>Beaconport Data Importer</h1>
 
     <p>
-      [Placeholder text - edit as needed]<br /><br>
+      [Placeholder text - edit as needed]<br /><br />
       This tool imports case data from the Beaconport Capture.xlsx file into the
       database.
     </p>
-
+    <br />
     <form method="POST">
       <button type="submit" class="import-button">Import Data</button>
     </form>
-
+    <br />
     <div class="stats-box">
       <div class="case-count">{{ case_count }}</div>
       <div>Unique Beaconport Cases in Database</div>
@@ -70,12 +67,15 @@
       {% endif %} {% endfor %}
     </div>
     {% endif %} {% endwith %}
-
+    <br />
     <form action="{{ url_for('victim_ages') }}" target="_blank">
       <button type="submit">View victim analysis</button>
     </form>
-       <form action="{{ url_for('digital_vs_finalisation') }}" target="_blank">
-      <button type="submit">View analysis of the use of digital opportunities</button>
+    <br />
+    <form action="{{ url_for('digital_vs_finalisation') }}" target="_blank">
+      <button type="submit">
+        View analysis of the use of digital opportunities
+      </button>
     </form>
   </body>
 </html>
