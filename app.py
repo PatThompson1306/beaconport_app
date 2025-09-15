@@ -1,4 +1,5 @@
 # Importing necessary libraries
+from collections import Counter
 import io 
 from flask import Flask, json, render_template, request, redirect, send_file, url_for, flash 
 from tinydb import TinyDB 
@@ -51,6 +52,20 @@ def get_victim_ages():
     return ages
 
 
+# Helper function: Victim Ethnicity Distribution
+def get_victim_ethnicity():
+    db_path = os.path.join(os.path.dirname(__file__), "beaconport_db.json")
+    with open(db_path, "r") as f:
+        data = json.load(f)
+    ethnicities = []
+    for case in data["cases"].values():
+        for victim in case.get("victim_details", []):
+            ethnicity = victim.get("Victim Ethnicity")
+            if ethnicity is not None:
+                ethnicities.append(ethnicity)
+    return ethnicities
+
+
 # Helper function: Digital Opportunities Present vs. Crime Finalisation Code pairs
 def get_digital_vs_finalisation():
     db_path = os.path.join(os.path.dirname(__file__), "beaconport_db.json")
@@ -97,9 +112,9 @@ def index():
 
 
 # Route to page which will display victim ages information
-@app.route("/victim_ages")
+@app.route("/victim_data")
 def victim_ages():
-    return render_template("victim_ages.html")
+    return render_template("victim_data.html")
 # Route to serve the victim ages visualisation along with the relevant charting code
 @app.route("/victim_ages_chart.png")
 def victim_ages_chart():
@@ -129,7 +144,25 @@ def victim_ages_chart():
     plt.close()
     buf.seek(0)
     return send_file(buf, mimetype='image/png')
-
+# Route to serve the victim ethnicity visualisation along with the relevant charting code
+@app.route("/victim_ethnicity_chart.png")
+def victim_ethnicity_chart():
+    ethnicities = get_victim_ethnicity()
+    buf = io.BytesIO()
+    plt.figure(figsize=(8, 4))
+    if ethnicities:
+        counts = Counter(ethnicities)
+        plt.bar(counts.keys(), counts.values(), color='blue')
+        plt.title("Victim Ethnicity Distribution")
+        plt.xlabel("Ethnicity")
+        plt.ylabel("Number of Victims")
+        plt.xticks(rotation=45)
+    else:
+        plt.text(0.5, 0.5, 'No data available', ha='center', va='center')
+    plt.savefig(buf, format='png')
+    plt.close()
+    buf.seek(0)
+    return send_file(buf, mimetype='image/png')
 
 
 # Route to page which will display digital opportunities information
