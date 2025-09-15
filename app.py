@@ -1,18 +1,19 @@
-import io # in-memory file handling
-from flask import Flask, json, render_template, request, redirect, send_file, url_for, flash # flask as the core web framework
-from tinydb import TinyDB # tinydb for simple JSON database
+# Importing necessary libraries
+import io 
+from flask import Flask, json, render_template, request, redirect, send_file, url_for, flash 
+from tinydb import TinyDB 
 import matplotlib
-matplotlib.use('Agg')  # Use non-GUI backend for web server
-import matplotlib.pyplot as plt # matplotlib for charting
-import subprocess # to run import script
-import sys # to get the python executable
-import os # for file path handling
+matplotlib.use('Agg')  
+import matplotlib.pyplot as plt 
+import subprocess 
+import sys
+import os 
 
 # Initialise the Flask app
 app = Flask(__name__)
 app.secret_key = "beaconport-secret"
 
-# Helper function: Get the count of unique cases in the database
+# Helper function: Get the count of unique cases in the database - to be displayed on the main app page
 def get_case_count():
     try:
         db = TinyDB("beaconport_db.json")
@@ -35,7 +36,8 @@ def get_case_count():
         print(f"Error in get_case_count: {e}")
         return 0
 
-# Helper function: Get victim ages from the database
+
+# Helper function: Victim ages across all cases for charting
 def get_victim_ages():
     db_path = os.path.join(os.path.dirname(__file__), "beaconport_db.json")
     with open(db_path, "r") as f:
@@ -48,7 +50,8 @@ def get_victim_ages():
                 ages.append(age)
     return ages
 
-# Helper function: Get (Digital Opportunities Present, Crime Finalisation Code) pairs
+
+# Helper function: Digital Opportunities Present vs. Crime Finalisation Code pairs
 def get_digital_vs_finalisation():
     db_path = os.path.join(os.path.dirname(__file__), "beaconport_db.json")
     with open(db_path, "r") as f:
@@ -73,6 +76,7 @@ def get_digital_vs_finalisation():
 
 # Route for the main page
 @app.route("/", methods=["GET", "POST"])
+# Display the main page with update as to loading data and the number of unique cases
 def index():
     case_count = get_case_count()
     if request.method == "POST":
@@ -91,23 +95,34 @@ def index():
         return redirect(url_for("index"))
     return render_template("index.html", case_count=case_count)
 
-# Route to page which will display victim ages chart
+
+# Route to page which will display victim ages information
 @app.route("/victim_ages")
 def victim_ages():
     return render_template("victim_ages.html")
-
-
-# Route to serve the victim ages chart image
+# Route to serve the victim ages visualisation along with the relevant charting code
 @app.route("/victim_ages_chart.png")
 def victim_ages_chart():
     ages = get_victim_ages()
     buf = io.BytesIO()
     plt.figure(figsize=(8, 4))
     if ages:
-        plt.hist(ages, bins=range(min(ages), max(ages)+2), edgecolor='black')
+        counts, bins, patches = plt.hist(ages, bins=range(min(ages), max(ages)+2), edgecolor='black')
         plt.title("Victim Ages Across All Cases")
         plt.xlabel("Age")
         plt.ylabel("Number of Victims")
+        # Set y-axis to whole numbers only
+        from matplotlib.ticker import MaxNLocator
+        ax = plt.gca()
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        # Center age numbers on columns
+        bin_centers = [bin_left + 0.5 for bin_left in bins[:-1]]
+        ax.set_xticks(bin_centers)
+        ax.set_xticklabels([str(int(center)) for center in bin_centers])
+        # Add count labels to each column
+        for count, bin_left, patch in zip(counts, bins, patches):
+            if count > 0:
+                plt.text(bin_left + 0.5, count, str(int(count)), ha='center', va='bottom', fontsize=9)
     else:
         plt.text(0.5, 0.5, 'No data available', ha='center', va='center')
     plt.savefig(buf, format='png')
@@ -115,13 +130,13 @@ def victim_ages_chart():
     buf.seek(0)
     return send_file(buf, mimetype='image/png')
 
-# Route to page which will display digital vs finalisation chart
+
+
+# Route to page which will display digital opportunities information
 @app.route("/digital_vs_finalisation")
 def digital_vs_finalisation():
     return render_template("digital_vs_finalisation.html")
-
-
-# Route to serve the digital vs finalisation scatter plot image
+# Route to serve the digital vs finalisation visualisation along with the relevant charting code
 @app.route("/digital_vs_finalisation_chart.png")
 def digital_vs_finalisation_chart():
     pairs = get_digital_vs_finalisation()
@@ -143,5 +158,6 @@ def digital_vs_finalisation_chart():
     return send_file(buf, mimetype='image/png')
 
 
+# Run the app
 if __name__ == "__main__":
     app.run(debug=True)
