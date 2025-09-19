@@ -7,9 +7,9 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "beaconport_db.json")
 EXCEL_FILE = "Beaconport Capture.xlsx"
 
 # Chart configuration
-CHART_SIZE = (8, 4)
-MAP_SIZE = (10, 6)
-CHART_DPI = 150
+CHART_SIZE = (12, 7)
+MAP_SIZE = (14, 9)
+CHART_DPI = 180
 
 # Field name constants
 class Fields:
@@ -21,10 +21,10 @@ class Fields:
 
 # Chart styling
 CHART_STYLE = {
-    'title_size': 12,
+    'title_size': 20,
     'title_weight': 'bold',
-    'label_size': 10,
-    'tick_size': 8,
+    'label_size': 16,
+    'tick_size': 14,
     'alpha': 0.7,
     'edge_color': 'black',
     'grid_alpha': 0.3

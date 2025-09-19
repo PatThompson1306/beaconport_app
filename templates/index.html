@@ -15,46 +15,47 @@
       rel="stylesheet"
     />
   </head>
-  <body></body>
-</html>
-
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Beaconport Data App</title>
-    <meta
-      charset="UTF-8"
-      name="viewport"
-      content="width=device-width, initial-scale=1.0"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='styles.css') }}"
-    />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Gentium+Plus:ital,wght@0,400;0,700;1,400;1,700&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
-      rel="stylesheet"
-    />
-  </head>
 
   <body>
-    <h1>Beaconport Data Importer</h1>
-
+    <div class="header-content">
+      <img
+        id="toex_logo"
+        src="{{ url_for('static', filename='images/logo.png') }}"
+        alt="TOEX logo"
+      />
+      <h1>Beaconport Data Importer</h1>
+      <img
+        id="taskforce_logo"
+        src="{{ url_for('static', filename='images/taskforce.png') }}"
+        alt="Taskforce logo"
+      />
+    </div>
+    <div class="info-box">
+    <p id="caveat">This is a proof of concept tool developed by the DCI Pat Thompson.</p>
     <p>
-      [Placeholder text - edit as needed]<br /><br />
       This tool imports case data from the Beaconport Capture.xlsx file into the
       database.
     </p>
-    <br />
+    <p>
+      Click the button below to import data from the Beaconport Capture.xlsx
+      file. This may take a few moments.
+    </p>
+    <p>
+      If you have already imported data, clicking the button again will
+      re-import the data and overwrite existing records.
+    </p>
+    <p>
+      Once data is imported, the buttons below will allow you to view some basic
+      analysis of victim ages and the use of digital opportunities in cases....
+    </p>
+    </div>
     <form method="POST">
       <button type="submit" class="import-button">Import Data</button>
     </form>
     <br />
     <div class="stats-box">
       <div class="case-count">{{ case_count }}</div>
-      <div>Unique Beaconport Cases in Database</div>
+      <div id="stats-label">Unique Beaconport Cases in Database</div>
     </div>
     <br />
     <!-- Flash messages -->
