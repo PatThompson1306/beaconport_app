@@ -20,9 +20,7 @@
   </head>
   <body>
     <h2>Digital Opportunities vs Crime Finalisation</h2>
-    <img
-      src="{{ url_for('digital_vs_finalisation_chart') }}"
-      alt="Digital Opportunities vs Crime Finalisation Chart"
-    />
-  </body>
-</html>
+  <img
+    src="{{ url_for('digital_vs_finalisation_chart') }}?t={{ now }}"
+    alt="Digital Opportunities vs Crime Finalisation Chart"
+  />

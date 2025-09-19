@@ -20,10 +20,16 @@
   </head>
   <body>
     <h2>Victim Ages Across All Cases</h2>
-    <img src="{{ url_for('victim_ages_chart') }}" alt="Victim Ages Chart" />
+  <img src="{{ url_for('victim_ages_chart') }}?t={{ now }}" alt="Victim Ages Chart">
     <br>
     <br>
     <h2>Victim Ethnicity Across All Cases</h2>
-    <img src="{{ url_for('victim_ethnicity_chart') }}" alt="Victim Ethnicity Chart" />
+  <img src="{{ url_for('victim_ethnicity_chart') }}?t={{ now }}" alt="Victim Ethnicity Chart" />
+    <br>
+    <br>
+    <h2>Victim Home Postcodes at Time of Offence</h2>
+    <img src="{{ url_for('victim_postcode_map') }}?t={{ now }}" alt="Victim Postcode Map" />
+    <br>
+    <br>
   </body>
 </html>
